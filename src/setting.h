@@ -32,5 +32,5 @@ int bgChgInterval = 60;
 int timeCheckInterval = 300;
 
 const int START_BG_NUM = 1;
-const int END_BG_NUM = 30;
+const int END_BG_NUM = 50;
 const int MAX_INFO_ID = 10;

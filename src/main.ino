@@ -2,8 +2,6 @@
 #include <TimeLib.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
-
-#define FS_NO_GLOBALS
 #include <FS.h>
 #include <TFT_eSPI.h>
 #include <TFT_eFEX.h>
@@ -40,7 +38,9 @@ int bgCounter;
 
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
+ESP8266WebServer esp8266_server(80);
 
+File fsUploadFile;
 
 String topicString;
 byte receiveVar;
@@ -74,6 +74,12 @@ void setup() {
   tft.setTextColor(TFT_YELLOW);
   tft.drawString("WiFi SSID:", 0,60,4);
   tft.drawString(WiFi.SSID(),0,90,4);
+
+  Serial.println('\n');
+  Serial.print("Connected to ");
+  Serial.println(WiFi.SSID());              // 通过串口监视器输出连接的WiFi名称
+  Serial.print("IP address:\t");
+  Serial.println(WiFi.localIP());
   
   ntpInit();
   
@@ -85,10 +91,18 @@ void setup() {
   mqttClient.setCallback(receiveCallback);
   connectMQTTserver();
 
+  esp8266_server.on("/upload.html", HTTP_POST, respondOK, handleFileUpload);
+
+  esp8266_server.onNotFound(handleUserRequest);
+
+  esp8266_server.begin();
+  Serial.println("HTTP Server started");
+
   //ticker.attach(1, tickerCount);
 }
 
 void loop() {
+  esp8266_server.handleClient();
   if (timeStatus() != timeNotSet) {
     if (now() != prevDisplay) {
       prevDisplay = now();
@@ -360,4 +374,90 @@ void subscribeTopic() {
       Serial.print("Subscribe Fail...");
     }
   }
+}
+
+// 处理上传文件函数
+void handleFileUpload(){  
+  
+  HTTPUpload& upload = esp8266_server.upload();
+  
+  if(upload.status == UPLOAD_FILE_START){                     // 如果上传状态为UPLOAD_FILE_START
+    
+    String filename = upload.filename;                        // 建立字符串变量用于存放上传文件名
+    if(!filename.startsWith("/")) filename = "/" + filename;  // 为上传文件名前加上"/"
+    Serial.println("File Name: " + filename);                 // 通过串口监视器输出上传文件的名称
+
+    fsUploadFile = SPIFFS.open(filename, "w");            // 在SPIFFS中建立文件用于写入用户上传的文件数据
+    
+  } else if(upload.status == UPLOAD_FILE_WRITE){          // 如果上传状态为UPLOAD_FILE_WRITE      
+    
+    if(fsUploadFile)
+      fsUploadFile.write(upload.buf, upload.currentSize); // 向SPIFFS文件写入浏览器发来的文件数据
+      
+  } else if(upload.status == UPLOAD_FILE_END){            // 如果上传状态为UPLOAD_FILE_END 
+    if(fsUploadFile) {                                    // 如果文件成功建立
+      fsUploadFile.close();                               // 将文件关闭
+      Serial.println(" Size: "+ upload.totalSize);        // 通过串口监视器输出文件大小
+      esp8266_server.sendHeader("Location","/success.html");  // 将浏览器跳转到/success.html（成功上传页面）
+      esp8266_server.send(303);                               // 发送相应代码303（重定向到新页面） 
+      fex.listSPIFFS();
+    } else {                                              // 如果文件未能成功建立
+      Serial.println("File upload failed");               // 通过串口监视器输出报错信息
+      esp8266_server.send(500, "text/plain", "500: couldn't create file"); // 向浏览器发送相应代码500（服务器错误）
+    }    
+  }
+}
+
+//回复状态码 200 给客户端
+void respondOK(){
+  esp8266_server.send(200);
+}
+
+// 处理用户浏览器的HTTP访问
+void handleUserRequest(){
+                              
+  // 获取用户请求网址信息
+  String webAddress = esp8266_server.uri();
+  
+  // 通过handleFileRead函数处处理用户访问
+  bool fileReadOK = handleFileRead(webAddress);
+
+  // 如果在SPIFFS无法找到用户访问的资源，则回复404 (Not Found)
+  if (!fileReadOK){                                                 
+    esp8266_server.send(404, "text/plain", "404 Not Found"); 
+  }
+}
+
+bool handleFileRead(String path) {            //处理浏览器HTTP访问
+
+  if (path.endsWith("/")) {                   // 如果访问地址以"/"为结尾
+    path = "/index.html";                     // 则将访问地址修改为/index.html便于SPIFFS访问
+  } 
+  
+  String contentType = getContentType(path);  // 获取文件类型
+  
+  if (SPIFFS.exists(path)) {                     // 如果访问的文件可以在SPIFFS中找到
+    File file = SPIFFS.open(path, "r");          // 则尝试打开该文件
+    esp8266_server.streamFile(file, contentType);// 并且将该文件返回给浏览器
+    file.close();                                // 并且关闭文件
+    return true;                                 // 返回true
+  }
+  return false;                                  // 如果文件未找到，则返回false
+}
+
+// 获取文件类型
+String getContentType(String filename){
+  if(filename.endsWith(".htm")) return "text/html";
+  else if(filename.endsWith(".html")) return "text/html";
+  else if(filename.endsWith(".css")) return "text/css";
+  else if(filename.endsWith(".js")) return "application/javascript";
+  else if(filename.endsWith(".png")) return "image/png";
+  else if(filename.endsWith(".gif")) return "image/gif";
+  else if(filename.endsWith(".jpg")) return "image/jpeg";
+  else if(filename.endsWith(".ico")) return "image/x-icon";
+  else if(filename.endsWith(".xml")) return "text/xml";
+  else if(filename.endsWith(".pdf")) return "application/x-pdf";
+  else if(filename.endsWith(".zip")) return "application/x-zip";
+  else if(filename.endsWith(".gz")) return "application/x-gzip";
+  return "text/plain";
 }

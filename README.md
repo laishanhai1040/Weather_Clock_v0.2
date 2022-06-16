@@ -1,3 +1,3 @@
-### Weather Clock
-# nodeMcu
-# ILI9341
+# Weather Clock
+### nodeMcu
+### ILI9341

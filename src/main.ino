@@ -23,6 +23,7 @@ TFT_eFEX fex = TFT_eFEX(&tft);
 bool bgChangeFlag = false;
 bool BLchangeFlage = false;
 bool BGPCTFlage = false;
+bool PMSChangeFlage = false;
 int bgId = START_BG_NUM;
 int BackLightValue = 128;
 
@@ -46,7 +47,7 @@ String topicString;
 byte receiveVar;
 byte printVar;
 
-byte receivePM10, receivePM25, receivePM100;
+int receivePM10, receivePM25, receivePM100;
 int receiveTEMP, receiveHUMI, receiveBackLight;
 
 
@@ -109,22 +110,33 @@ void loop() {
       tick();
     }
   }
+
   if (bgChangeFlag == true) {
     bgChangeFlag = false;
     bgId++;
     if (bgId > END_BG_NUM) bgId = START_BG_NUM;
     displayBg(bgId);
   }
+
   if (mqttClient.connected()) {
     mqttClient.loop();
   } else {
     connectMQTTserver();
   }
+  
   if (BLchangeFlage == true) {
     BackLightValue = map(receiveBackLight, 0,10, 0,255);
     Serial.print("BackLightValue=" );
     Serial.println(BackLightValue);
     BLchangeFlage = false;
+  }
+
+  if (PMSChangeFlage == true) {
+    tft.fillRect(0,220,200,20,TFT_BGR);
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.drawChar(0,220,'PM2.5:',4);
+    tft.drawNumber(receivePM25,80,220,4);
+    PMSChangeFlage = false;
   }
   analogWrite(D2, BackLightValue);
   mqttClient.loop();
@@ -287,18 +299,23 @@ void receiveCallback(char* topic, byte* payload, unsigned int length) {
   String topic2 = topic;
   if (topic2 == PM10) {
     receivePM10 = ii;
+    //PMSChangeFlage = true;
   }
   else if (topic2 == PM25) {
     receivePM25 = ii;
+    PMSChangeFlage = true;
   }
   else if (topic2 == PM100) {
     receivePM100 = ii;
+    //PMSChangeFlage = true;
   }
   else if (topic2 == TEMPTopic) {
     receiveTEMP = ii;
+    //PMSChangeFlage = true;
   }
   else if (topic2 == HUMITopic) {
     receiveHUMI = ii;
+    //PMSChangeFlage = true;
   }
   else if (topic2 == BACKLIGHT) {
     receiveBackLight = ii;

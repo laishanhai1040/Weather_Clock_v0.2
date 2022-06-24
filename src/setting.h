@@ -28,7 +28,7 @@ const char* BGPCT = "hai1040/ILI9341/BGPChangeTime";
 const char* BGPNUM = "hai1040/ILI9341/BGPnumber";
 
 
-int bgChgInterval = 60;
+int bgChgInterval = 300;
 int timeCheckInterval = 300;
 
 const int START_BG_NUM = 1;

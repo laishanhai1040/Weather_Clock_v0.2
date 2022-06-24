@@ -65,6 +65,7 @@ void setup() {
 
   tft.begin();
   tft.setRotation(1);
+  //tft.setSwapBytes(true);
   tft.fillScreen(TFT_BLACK);
 
   WiFiManager wifiManager;
@@ -81,6 +82,8 @@ void setup() {
   Serial.println(WiFi.SSID());              // 通过串口监视器输出连接的WiFi名称
   Serial.print("IP address:\t");
   Serial.println(WiFi.localIP());
+  String ip01 = WiFi.localIP().toString();
+  tft.drawString(ip01,0,220,4);
   
   ntpInit();
   
@@ -116,6 +119,7 @@ void loop() {
     bgId++;
     if (bgId > END_BG_NUM) bgId = START_BG_NUM;
     displayBg(bgId);
+    fex.listSPIFFS(); // Lists the files so you can see what is in the SPIFFS
   }
 
   if (mqttClient.connected()) {
@@ -131,13 +135,15 @@ void loop() {
     BLchangeFlage = false;
   }
 
+  /*
   if (PMSChangeFlage == true) {
     tft.fillRect(0,220,200,20,TFT_BGR);
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
     tft.drawChar(0,220,'PM2.5:',4);
     tft.drawNumber(receivePM25,80,220,4);
     PMSChangeFlage = false;
-  }
+  } */
+  
   analogWrite(D2, BackLightValue);
   mqttClient.loop();
 }
@@ -232,33 +238,33 @@ void displayTime() {
   tft.drawString(dateTimeString, 0, 0, 4);
 
   if (weekday() == 1) {
-    tft.fillRect(300,0,20,20, BANNER_BG);
+    tft.fillRect(280,0,20,20, BANNER_BG);
     tft.setTextDatum(TR_DATUM);
-    tft.drawString("Sun", 320,0,4);
+    tft.drawString("Sunday", 320,0,4);
   } else if (weekday() == 2){
-    tft.fillRect(300,0,20,20,BANNER_BG);
+    tft.fillRect(280,0,20,20,BANNER_BG);
     tft.setTextDatum(TR_DATUM);
-    tft.drawString("Mon", 320,0,4);
+    tft.drawString("Monday", 320,0,4);
   } else if (weekday() == 3){
-    tft.fillRect(300,0,20,20,BANNER_BG);
+    tft.fillRect(280,0,20,20,BANNER_BG);
     tft.setTextDatum(TR_DATUM);
-    tft.drawString("Tue", 320,0,4);
+    tft.drawString("Tuesday", 320,0,4);
   } else if (weekday() == 4){
-    tft.fillRect(300,0,20,20,BANNER_BG);
+    tft.fillRect(280,0,20,20,BANNER_BG);
     tft.setTextDatum(TR_DATUM);
-    tft.drawString("Wed", 320,0,4);
+    tft.drawString("Wednesday", 320,0,4);
   } else if (weekday() == 5){
-    tft.fillRect(300,0,20,20,BANNER_BG);
+    tft.fillRect(280,0,20,20,BANNER_BG);
     tft.setTextDatum(TR_DATUM);
-    tft.drawString("Thu", 320,0,4);
+    tft.drawString("Thursday", 320,0,4);
   } else if (weekday() == 6){
-    tft.fillRect(300,0,20,20,BANNER_BG);
+    tft.fillRect(280,0,20,20,BANNER_BG);
     tft.setTextDatum(TR_DATUM);
-    tft.drawString("Fri", 320,0,4);
+    tft.drawString("Friday", 320,0,4);
   } else if (weekday() == 7){
-    tft.fillRect(300,0,20,20,BANNER_BG);
+    tft.fillRect(280,0,20,20,BANNER_BG);
     tft.setTextDatum(TR_DATUM);
-    tft.drawString("Sat", 320,0,4);
+    tft.drawString("Saturday", 320,0,4);
   } 
 
   tft.resetViewport();
@@ -275,6 +281,7 @@ String adjDigit(int number) {
 void displayBg(int bgId) {
   String bgName = "/bg" + String(bgId) + ".jpg";
   fex.drawJpeg(bgName, 0, BANNER_HEIGHT);
+  fex.jpegInfo(bgName);
   Serial.println(bgName);
 }
 
